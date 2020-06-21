@@ -6,6 +6,9 @@ import (
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	watch "k8s.io/apimachinery/pkg/watch"
 	k8s "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
+	typed_core_v1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/tools/record"
 )
 
 // ConfigMapManager is a simple wrapper around the Kubernetes API
@@ -13,12 +16,21 @@ import (
 type ConfigMapManager struct {
 	clientset   k8s.Interface
 	watchHandle watch.Interface
+	recorder    record.EventRecorder
 }
 
 // NewConfigMapManager creates a new ConfigMapManager
 func NewConfigMapManager(clientset k8s.Interface) *ConfigMapManager {
+	// Make a recorder for events
+	// See https://git.io/JfNVp
+	broadcaster := record.NewBroadcaster()
+	broadcaster.StartRecordingToSink(&typed_core_v1.EventSinkImpl{
+		Interface: clientset.CoreV1().Events(""),
+	})
+	recorder := broadcaster.NewRecorder(scheme.Scheme, core_v1.EventSource{Component: "k8s-curl"})
 	return &ConfigMapManager{
 		clientset: clientset,
+		recorder:  recorder,
 	}
 }
 
@@ -29,7 +41,6 @@ func NewConfigMapManager(clientset k8s.Interface) *ConfigMapManager {
 func (m *ConfigMapManager) StartWatching() (<-chan *core_v1.ConfigMap, error) {
 	// Make sure Watch wasn't already ongoing.
 	m.StopWatching()
-
 
 	// TODO: Should this be used for a controller? Have a look at
 	// https://godoc.org/k8s.io/client-go/tools/cache
@@ -94,4 +105,8 @@ func (m *ConfigMapManager) UpdateData(configMap *core_v1.ConfigMap, data map[str
 		}
 	}
 	return err
+}
+
+func (m *ConfigMapManager) RecordError(configMap *core_v1.ConfigMap, fmt string, args ...interface{}) {
+	m.recorder.Eventf(configMap, core_v1.EventTypeWarning, "k8s-url", fmt, args...)
 }

@@ -14,6 +14,7 @@ const curlAnnotation = "x-k8s.io/curl-me-that"
 
 type DataUpdater interface {
 	UpdateData(*core_v1.ConfigMap, map[string]string) error
+	RecordError(*core_v1.ConfigMap, string, ...interface{})
 }
 
 func curlConfigMap(configMap *core_v1.ConfigMap, updater DataUpdater) {
@@ -30,6 +31,7 @@ func curlConfigMap(configMap *core_v1.ConfigMap, updater DataUpdater) {
 	fetcher, err := PageFetcherFromString(urls)
 	if err != nil {
 		logger.WithError(err).Error("Cannot parse URLs")
+		updater.RecordError(configMap, "Can't parse URL: %v", err)
 		return
 	}
 
@@ -41,6 +43,7 @@ func curlConfigMap(configMap *core_v1.ConfigMap, updater DataUpdater) {
 	data, err := fetcher.Fetch()
 	if err != nil {
 		logger.WithError(err).Error("Cannot fetch URLs")
+		updater.RecordError(configMap, "Can't fetch URL: %v", err)
 		// Do not return here, set the data on a best-effort basis.
 	}
 
