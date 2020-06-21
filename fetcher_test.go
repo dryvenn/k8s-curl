@@ -53,6 +53,15 @@ func TestFetch(t *testing.T) {
 				"cloudflares": "makes your Internet faster",
 			},
 		},
+		{
+			name: "no scheme",
+			fetcher: PageFetcher{
+				"datanet": "data.net",
+			},
+			success: map[string]string{
+				"datanet": "Now, now, we've all seen a web server before.",
+			},
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

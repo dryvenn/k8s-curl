@@ -38,6 +38,11 @@ func (pf PageFetcher) Fetch() (map[string]string, error) {
 	ret := make(map[string]string)
 	errs := make(FetchError)
 	for key, url := range pf {
+		// Make sure the URL starts with a scheme
+		// FIXME: use url.Parse?
+		if !strings.HasPrefix(url, "http") {
+			url = "http://" + url
+		}
 		res, err := http.Get(url)
 		if err != nil {
 			errs[key] = err
