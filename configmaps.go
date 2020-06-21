@@ -1,6 +1,7 @@
 package main
 
 import (
+	log "github.com/sirupsen/logrus"
 	core_v1 "k8s.io/api/core/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	watch "k8s.io/apimachinery/pkg/watch"
@@ -62,9 +63,30 @@ EventLoop:
 		default:
 			continue EventLoop
 		}
-		if cm, ok := event.Object.(*core_v1.ConfigMap); ok {
+		if cm, ok := event.Object.(*core_v1.ConfigMap); !ok {
+			log.WithField("obj", event.Object).Error("Received event for not a configmap")
+		} else {
 			configMaps <- cm
 		}
 	}
 	close(configMaps)
+}
+
+// UpdateData updates the Data field of the configmap.
+func (m *ConfigMapManager) UpdateData(configMap *core_v1.ConfigMap, data map[string]string) error {
+	if configMap.Data == nil {
+		configMap.Data = make(map[string]string)
+	}
+	for k, v := range data {
+		configMap.Data[k] = v
+	}
+
+	var err error
+	for i := 0; i < 3; i++ {
+		_, err := m.clientset.CoreV1().ConfigMaps(configMap.Namespace).Update(configMap)
+		if err == nil {
+			break
+		}
+	}
+	return err
 }

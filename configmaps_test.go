@@ -48,7 +48,7 @@ func TestConfigMapWatching(t *testing.T) {
 	}
 	testNoNotif()
 
-	// change configmap
+	// change configmap manually
 	testConfigMap.Data = map[string]string{"key": "val"}
 	configMapClient.Update(&testConfigMap)
 
@@ -60,6 +60,14 @@ func TestConfigMapWatching(t *testing.T) {
 	if notif.Data["key"] != testConfigMap.Data["key"] {
 		t.Fatal("configmap val mismatch")
 	}
+	testNoNotif()
+
+	// change configmap by update method
+	err = manager.UpdateData(&testConfigMap, map[string]string{"another": "couple"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = <-notifChan
 	testNoNotif()
 
 	// delete configmap
