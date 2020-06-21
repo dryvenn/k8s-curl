@@ -24,6 +24,14 @@ func (e FetchError) Error() string {
 	return strings.Join(ret, " ")
 }
 
+// Exclude will remove from PageFetcher all the keys that are in the given
+// map.
+func (pf PageFetcher) Exclude(excl map[string]string) {
+	for k := range excl {
+		delete(pf, k)
+	}
+}
+
 // Fetch will HTTP-Get the content of each keyword's URL and return it.
 // It will return a non-nil error when at least one the call failed.
 func (pf PageFetcher) Fetch() (map[string]string, error) {
