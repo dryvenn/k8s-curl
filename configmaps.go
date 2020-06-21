@@ -25,9 +25,14 @@ func NewConfigMapManager(clientset k8s.Interface) *ConfigMapManager {
 // StartWatching returns a channel in which ConfigMap objects will be sent
 // whenever a ConfigMap is added or changed in the cluster.
 // It will ignore events from errors and deletions.
+// Subsequent calls to this method will cancel previous ones.
 func (m *ConfigMapManager) StartWatching() (<-chan *core_v1.ConfigMap, error) {
+	// Make sure Watch wasn't already ongoing.
 	m.StopWatching()
 
+
+	// TODO: Should this be used for a controller? Have a look at
+	// https://godoc.org/k8s.io/client-go/tools/cache
 	handle, err := m.clientset.CoreV1().ConfigMaps("").Watch(meta_v1.ListOptions{})
 	if err != nil {
 		return nil, err
