@@ -48,6 +48,10 @@ func (pf PageFetcher) Fetch() (map[string]string, error) {
 			errs[key] = err
 			continue
 		}
+		if res.StatusCode != 200 {
+			errs[key] = fmt.Errorf("Error: %s", res.Status)
+			continue
+		}
 		defer res.Body.Close()
 		body, err := ioutil.ReadAll(res.Body)
 		if err != nil {

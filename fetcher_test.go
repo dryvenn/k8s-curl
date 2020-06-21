@@ -62,6 +62,16 @@ func TestFetch(t *testing.T) {
 				"datanet": "Now, now, we've all seen a web server before.",
 			},
 		},
+		{
+			name: "joke",
+			fetcher: PageFetcher{
+				"joke": "curl-a-joke.herokuapp.com",
+				"poke": "curl-a-poke.herokuapp.com",
+			},
+			success: map[string]string{
+				"joke": "",
+			},
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
