@@ -19,6 +19,11 @@ type ConfigMapManager struct {
 	recorder    record.EventRecorder
 }
 
+type ConfigMap struct {
+	*core_v1.ConfigMap
+	manager *ConfigMapManager
+}
+
 // NewConfigMapManager creates a new ConfigMapManager
 func NewConfigMapManager(clientset k8s.Interface) *ConfigMapManager {
 	// Make a recorder for events
@@ -38,7 +43,7 @@ func NewConfigMapManager(clientset k8s.Interface) *ConfigMapManager {
 // whenever a ConfigMap is added or changed in the cluster.
 // It will ignore events from errors and deletions.
 // Subsequent calls to this method will cancel previous ones.
-func (m *ConfigMapManager) StartWatching() (<-chan *core_v1.ConfigMap, error) {
+func (m *ConfigMapManager) StartWatching() (<-chan ConfigMap, error) {
 	// Make sure Watch wasn't already ongoing.
 	m.StopWatching()
 
@@ -51,7 +56,7 @@ func (m *ConfigMapManager) StartWatching() (<-chan *core_v1.ConfigMap, error) {
 	m.watchHandle = handle
 
 	// TODO: determine the correct buffering here
-	configMaps := make(chan *core_v1.ConfigMap, 100)
+	configMaps := make(chan ConfigMap, 100)
 
 	go m.processEvents(handle.ResultChan(), configMaps)
 
@@ -70,7 +75,7 @@ func (m *ConfigMapManager) StopWatching() {
 
 // processEvents transforms event objects into configmap objects, and filters
 // events by type.
-func (m *ConfigMapManager) processEvents(events <-chan watch.Event, configMaps chan<- *core_v1.ConfigMap) {
+func (m *ConfigMapManager) processEvents(events <-chan watch.Event, configMaps chan<- ConfigMap) {
 EventLoop:
 	for event := range events {
 		// Only keep mutations, ignore deletions and errors
@@ -82,24 +87,28 @@ EventLoop:
 		if cm, ok := event.Object.(*core_v1.ConfigMap); !ok {
 			log.WithField("obj", event.Object).Error("Received event for not a configmap")
 		} else {
-			configMaps <- cm
+			configMaps <- ConfigMap{ConfigMap: cm, manager: m}
 		}
 	}
 	close(configMaps)
 }
 
-// UpdateData updates the Data field of the configmap.
-func (m *ConfigMapManager) UpdateData(configMap *core_v1.ConfigMap, data map[string]string) error {
-	if configMap.Data == nil {
-		configMap.Data = make(map[string]string)
+// Push adds the given data to the Data field of the configmap and sends
+// the update to Kubernetes.
+// Conflicting keys are overwritten.
+// Note that in case of error, the ConfigMap struct will still be modified even
+// if this change is not reflected in Kubernetes!
+func (cm ConfigMap) Push(data map[string]string) error {
+	if cm.Data == nil {
+		cm.Data = make(map[string]string)
 	}
 	for k, v := range data {
-		configMap.Data[k] = v
+		cm.Data[k] = v
 	}
 
 	var err error
 	for i := 0; i < 3; i++ {
-		_, err := m.clientset.CoreV1().ConfigMaps(configMap.Namespace).Update(configMap)
+		_, err := cm.manager.clientset.CoreV1().ConfigMaps(cm.Namespace).Update(cm.ConfigMap)
 		if err == nil {
 			break
 		}
@@ -107,6 +116,7 @@ func (m *ConfigMapManager) UpdateData(configMap *core_v1.ConfigMap, data map[str
 	return err
 }
 
-func (m *ConfigMapManager) RecordError(configMap *core_v1.ConfigMap, fmt string, args ...interface{}) {
-	m.recorder.Eventf(configMap, core_v1.EventTypeWarning, "k8s-url", fmt, args...)
+// RecordWarning records an event on the configmap resource of type Warning
+func (cm *ConfigMap) RecordWarning(fmt string, args ...interface{}) {
+	cm.manager.recorder.Eventf(cm.ConfigMap, core_v1.EventTypeWarning, "k8s-url", fmt, args...)
 }

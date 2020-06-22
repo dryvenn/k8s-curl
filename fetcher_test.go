@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestFetch(t *testing.T) {
+func TestPageFetcher_Fetch(t *testing.T) {
 	tests := []struct {
 		name    string
 		fetcher PageFetcher
@@ -115,6 +115,20 @@ func TestFetch(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestPageFetcher_Exclude(t *testing.T) {
+	var pf PageFetcher
+
+	pf = PageFetcher{"key1": "val1", "key2": "val2", "key3": "val3"}
+
+	pf.Exclude(map[string]string{"key1": "", "key2": "val", "key4": "val4"})
+	pf.Exclude(map[string]string{})
+	pf.Exclude(nil)
+
+	if len(pf) != 1 {
+		t.Fatal("exclusion did not work")
 	}
 }
 

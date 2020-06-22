@@ -63,12 +63,15 @@ func TestConfigMapWatching(t *testing.T) {
 	testNoNotif()
 
 	// change configmap by update method
-	err = manager.UpdateData(&testConfigMap, map[string]string{"another": "couple"})
+	err = notif.Push(map[string]string{"another": "couple"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	_ = <-notifChan
 	testNoNotif()
+
+	// record a warning
+	notif.RecordWarning("test warning")
 
 	// delete configmap
 	configMapClient.Delete(testConfigMap.Name, &meta_v1.DeleteOptions{})
