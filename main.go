@@ -27,7 +27,7 @@ func curlConfigMap(configMap ConfigMap) {
 
 	fetcher, err := PageFetcherFromString(urls)
 	if err != nil {
-		logger.WithError(err).Error("Cannot parse URLs")
+		logger.WithError(err).Warning("Cannot parse URLs")
 		configMap.RecordWarning("Can't parse URL: %v", err)
 		return
 	}
@@ -39,7 +39,7 @@ func curlConfigMap(configMap ConfigMap) {
 
 	data, err := fetcher.Fetch()
 	if err != nil {
-		logger.WithError(err).Error("Cannot fetch URLs")
+		logger.WithError(err).Warning("Cannot fetch URLs")
 		configMap.RecordWarning("Can't fetch URL: %v", err)
 		// Do not return here, set the data on a best-effort basis.
 	}
